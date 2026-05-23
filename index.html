@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swiggy Evening Planner — AI Agent Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --swiggy: #FF5200;
+    --swiggy-dim: #cc4200;
+    --bg: #0a0a0b;
+    --surface: #111113;
+    --surface2: #18181c;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0ede8;
+    --muted: #7a7870;
+    --muted2: #a09d98;
+    --dineout: #7C3AED;
+    --food: #FF5200;
+    --success: #22c55e;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,82,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,82,0,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow {
+    position: fixed;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(255,82,0,0.08) 0%, transparent 70%);
+    top: -200px; right: -100px;
+    pointer-events: none; z-index: 0;
+  }
+  .glow2 {
+    position: fixed;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(124,58,237,0.07) 0%, transparent 70%);
+    bottom: -100px; left: -100px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative; z-index: 1;
+  }
+
+  /* HEADER */
+  header {
+    padding: 32px 0 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-dot {
+    width: 32px; height: 32px;
+    background: var(--swiggy);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo-name {
+    font-size: 14px; font-weight: 600; letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .logo-sub {
+    font-size: 11px; color: var(--muted); font-family: var(--mono);
+  }
+  .badge-api {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 10px;
+    border: 1px solid var(--border2);
+    border-radius: 99px;
+    color: var(--muted2);
+    letter-spacing: 0.04em;
+  }
+
+  /* HERO */
+  .hero {
+    padding: 56px 0 40px;
+    text-align: center;
+  }
+  .hero-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--swiggy);
+    border: 1px solid rgba(255,82,0,0.3);
+    padding: 4px 14px;
+    border-radius: 99px;
+    margin-bottom: 20px;
+    letter-spacing: 0.06em;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .hero h1 span { color: var(--swiggy); }
+  .hero p {
+    font-size: 16px; color: var(--muted2); max-width: 520px; margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* API BADGES */
+  .api-row {
+    display: flex; gap: 10px; justify-content: center; margin: 28px 0;
+  }
+  .api-badge {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 12px; font-weight: 500;
+    border: 1px solid;
+  }
+  .api-badge.food { border-color: rgba(255,82,0,0.4); color: #ff8a5c; background: rgba(255,82,0,0.08); }
+  .api-badge.dineout { border-color: rgba(124,58,237,0.4); color: #a78bfa; background: rgba(124,58,237,0.08); }
+  .api-badge.instamart { border-color: rgba(34,197,94,0.4); color: #4ade80; background: rgba(34,197,94,0.08); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.food { background: var(--food); }
+  .dot.dineout { background: var(--dineout); }
+  .dot.instamart { background: var(--success); }
+
+  /* DEMO AREA */
+  .demo-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    margin: 8px 0 40px;
+  }
+  .demo-bar {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .demo-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .d1 { background: #ff5f57; }
+  .d2 { background: #febc2e; }
+  .d3 { background: #28c840; }
+  .demo-url {
+    flex: 1; text-align: center;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+
+  /* CHAT */
+  .chat-area {
+    padding: 20px;
+    min-height: 320px;
+    max-height: 480px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .msg { display: flex; gap: 10px; animation: fadeSlide 0.3s ease; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user { flex-direction: row-reverse; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; margin-top: 2px;
+  }
+  .avatar.ai { background: linear-gradient(135deg, #ff5200, #cc2900); }
+  .avatar.user { background: var(--surface2); border: 1px solid var(--border2); }
+  .bubble {
+    max-width: 72%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 13px; line-height: 1.65;
+  }
+  .msg.user .bubble {
+    background: rgba(255,82,0,0.12);
+    border: 1px solid rgba(255,82,0,0.2);
+    border-radius: 16px 4px 16px 16px;
+    color: var(--text);
+  }
+  .msg.ai .bubble {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px 16px 16px 16px;
+    color: var(--muted2);
+  }
+  .bubble strong { color: var(--text); font-weight: 500; }
+  .bubble .tag-food { color: #ff8a5c; font-family: var(--mono); font-size: 11px; }
+  .bubble .tag-dineout { color: #a78bfa; font-family: var(--mono); font-size: 11px; }
+
+  /* TOOL CALL */
+  .tool-call {
+    background: rgba(255,82,0,0.05);
+    border: 1px solid rgba(255,82,0,0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 6px 0;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .tool-call.dineout { background: rgba(124,58,237,0.05); border-color: rgba(124,58,237,0.15); }
+  .tool-name { color: var(--swiggy); }
+  .tool-call.dineout .tool-name { color: #a78bfa; }
+  .tool-args { color: var(--muted); margin-top: 2px; }
+
+  /* RESULT CARD */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 14px;
+    margin: 8px 0;
+  }
+  .result-card .rc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .rc-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .rc-tag { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-family: var(--mono); }
+  .rc-tag.food-tag { background: rgba(255,82,0,0.15); color: #ff8a5c; }
+  .rc-tag.dineout-tag { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  .rc-meta { font-size: 12px; color: var(--muted); display: flex; gap: 12px; }
+  .rc-meta span { display: flex; align-items: center; gap: 4px; }
+  .rc-price { font-size: 13px; font-weight: 600; color: var(--swiggy); }
+
+  /* CONFIRMATION */
+  .confirm-box {
+    background: linear-gradient(135deg, rgba(255,82,0,0.08), rgba(124,58,237,0.06));
+    border: 1px solid rgba(255,82,0,0.25);
+    border-radius: 14px;
+    padding: 16px;
+    margin: 8px 0;
+  }
+  .confirm-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+  .confirm-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .confirm-icon { font-size: 18px; }
+  .confirm-detail { font-size: 12px; color: var(--muted2); line-height: 1.5; }
+  .confirm-detail strong { color: var(--text); display: block; }
+  .confirm-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-confirm {
+    background: var(--swiggy); color: white;
+    border: none; border-radius: 8px;
+    padding: 9px 20px; font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: var(--sans);
+    transition: background 0.15s;
+  }
+  .btn-confirm:hover { background: var(--swiggy-dim); }
+  .btn-cancel {
+    background: transparent; color: var(--muted2);
+    border: 1px solid var(--border2); border-radius: 8px;
+    padding: 9px 20px; font-size: 13px;
+    cursor: pointer; font-family: var(--sans);
+    transition: border-color 0.15s;
+  }
+  .btn-cancel:hover { border-color: var(--border2); color: var(--text); }
+
+  /* INPUT */
+  .input-area {
+    border-top: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: var(--sans); font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .chat-input:focus { border-color: rgba(255,82,0,0.4); }
+  .chat-input::placeholder { color: var(--muted); }
+  .send-btn {
+    background: var(--swiggy);
+    border: none; border-radius: 10px;
+    width: 40px; height: 40px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--swiggy-dim); }
+  .send-btn svg { width: 16px; height: 16px; fill: white; }
+
+  /* TYPING INDICATOR */
+  .typing { display: flex; gap: 4px; padding: 6px 0; }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted);
+    animation: bounce 1.2s ease infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%,60%,100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  /* QUICK PROMPTS */
+  .quick-prompts {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 0 20px 14px;
+  }
+  .qp {
+    font-size: 12px; color: var(--muted2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .qp:hover { border-color: rgba(255,82,0,0.4); color: var(--swiggy); }
+
+  /* ARCHITECTURE SECTION */
+  .section { margin: 60px 0; }
+  .section-title {
+    font-size: 13px; font-family: var(--mono);
+    color: var(--swiggy); letter-spacing: 0.06em;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* FLOW DIAGRAM */
+  .flow {
+    display: flex; align-items: flex-start; gap: 0;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .flow-step {
+    flex-shrink: 0; width: 160px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .flow-step .fs-icon { font-size: 22px; margin-bottom: 8px; }
+  .flow-step .fs-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .flow-step .fs-tool { font-family: var(--mono); font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .flow-arrow {
+    align-self: center; flex-shrink: 0;
+    width: 32px; text-align: center;
+    color: var(--border2); font-size: 18px;
+    margin: 0 -4px;
+  }
+  .flow-step.food-step { border-color: rgba(255,82,0,0.25); }
+  .flow-step.dineout-step { border-color: rgba(124,58,237,0.25); }
+
+  /* TECH STACK */
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .tech-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .tc-layer { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; letter-spacing: 0.04em; }
+  .tc-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .tc-why { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  /* DEMO SCRIPT */
+  .script-steps { display: flex; flex-direction: column; gap: 12px; }
+  .script-step {
+    display: flex; gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .ss-num {
+    font-family: var(--mono); font-size: 11px; color: var(--swiggy);
+    background: rgba(255,82,0,0.1);
+    border: 1px solid rgba(255,82,0,0.2);
+    border-radius: 6px;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .ss-content .ss-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .ss-content .ss-desc { font-size: 12px; color: var(--muted2); line-height: 1.6; }
+  .ss-content .ss-say {
+    font-family: var(--mono); font-size: 11px; color: #a78bfa;
+    background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.15);
+    border-radius: 6px; padding: 6px 10px; margin-top: 8px;
+    font-style: italic;
+  }
+
+  /* HIRE SIGNALS */
+  .signals { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .signal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex; gap: 12px;
+  }
+  .sig-icon { font-size: 20px; flex-shrink: 0; }
+  .sig-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .sig-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    text-align: center;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    margin-top: 60px;
+  }
+
+  /* STATUS PULSE */
+  .status-pulse {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px; color: var(--success);
+  }
+  .pulse-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  @media (max-width: 600px) {
+    .signals { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="glow2"></div>
+
+<div class="container">
+  <header>
+    <div class="logo">
+      <div class="logo-dot">🍽️</div>
+      <div>
+        <div class="logo-name">Evening Planner</div>
+        <div class="logo-sub">powered by swiggy MCP</div>
+      </div>
+    </div>
+    <div class="status-pulse"><div class="pulse-dot"></div> live demo</div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-tag">SWIGGY BUILDERS CLUB PROJECT</div>
+    <h1>Plan your evening<br>with <span>one sentence</span></h1>
+    <p>An AI agent that books your dinner table and schedules dessert delivery — across two Swiggy MCP servers, in a single conversation.</p>
+  </div>
+
+  <div class="api-row">
+    <div class="api-badge food"><div class="dot food"></div>Food MCP</div>
+    <div class="api-badge dineout"><div class="dot dineout"></div>Dineout MCP</div>
+    <div class="api-badge instamart"><div class="dot instamart"></div>14 tools used</div>
+  </div>
+
+  <!-- LIVE DEMO -->
+  <div class="demo-wrap">
+    <div class="demo-bar">
+      <div class="demo-dot d1"></div>
+      <div class="demo-dot d2"></div>
+      <div class="demo-dot d3"></div>
+      <div class="demo-url">evening-planner.local — AI Agent Demo</div>
+      <div class="badge-api">MCP v1.0</div>
+    </div>
+
+    <div class="chat-area" id="chatArea">
+      <div class="msg ai">
+        <div class="avatar ai">🍽️</div>
+        <div class="bubble">
+          Hey! I'm your <strong>Evening Planner</strong>. Tell me what you're in the mood for tonight — dinner out, food delivered, or both. I'll handle the rest across Swiggy Food and Dineout.
+        </div>
+      </div>
+    </div>
+
+    <div class="quick-prompts" id="quickPrompts">
+      <div class="qp" onclick="sendQuick(this)">Plan Friday dinner for 4, Italian in Indiranagar, dessert at 10pm</div>
+      <div class="qp" onclick="sendQuick(this)">Book a rooftop restaurant tonight, 2 people, send biryani dessert later</div>
+      <div class="qp" onclick="sendQuick(this)">Family dinner out + get groceries delivered for tomorrow</div>
+    </div>
+
+    <div class="input-area">
+      <input class="chat-input" id="chatInput" placeholder="Tell me what you want this evening..." autocomplete="off" onkeydown="if(event.key==='Enter')sendMsg()">
+      <button class="send-btn" onclick="sendMsg()">
+        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE FLOW -->
+  <div class="section">
+    <div class="section-title">// HOW IT WORKS — AGENT FLOW</div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="fs-icon">💬</div>
+        <div class="fs-name">User Intent</div>
+        <div class="fs-tool">Natural language<br>parsed by LLM</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step dineout-step">
+        <div class="fs-icon">🍷</div>
+        <div class="fs-name">Find Restaurant</div>
+        <div class="fs-tool">search_restaurants<br>_dineout<br>get_available_slots</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step dineout-step">
+        <div class="fs-icon">📋</div>
+        <div class="fs-name">Book Table</div>
+        <div class="fs-tool">book_table<br>get_booking<br>_status</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step food-step">
+        <div class="fs-icon">🛵</div>
+        <div class="fs-name">Queue Delivery</div>
+        <div class="fs-tool">search_restaurants<br>get_restaurant<br>_menu</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step food-step">
+        <div class="fs-icon">✅</div>
+        <div class="fs-name">Confirm Order</div>
+        <div class="fs-tool">update_food_cart<br>place_food_order<br>track_food_order</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="section">
+    <div class="section-title">// TECH STACK</div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tc-layer">LLM LAYER</div>
+        <div class="tc-name">Claude Sonnet</div>
+        <div class="tc-why">Tool-calling, multi-server orchestration, natural language to MCP tool mapping</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-layer">FRAMEWORK</div>
+        <div class="tc-name">Next.js 14</div>
+        <div class="tc-why">API routes for server-side MCP calls, React UI, fast iteration, easy Vercel deploy</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-layer">MCP CLIENT</div>
+        <div class="tc-name">Streamable HTTP</div>
+        <div class="tc-why">Direct calls to mcp.swiggy.com/food + /dineout using OAuth 2.1 PKCE</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-layer">AUTH</div>
+        <div class="tc-name">OAuth 2.1 + PKCE</div>
+        <div class="tc-why">One token works across all 3 Swiggy MCP servers. Handle 401s with re-auth flow</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-layer">STATE</div>
+        <div class="tc-name">Server-side cart</div>
+        <div class="tc-why">Always call get_food_cart before place — user may have edited in Swiggy app</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-layer">DEPLOY</div>
+        <div class="tc-name">Vercel</div>
+        <div class="tc-why">Free tier, instant deploy, shareable URL for Swiggy demo submission</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEMO SCRIPT -->
+  <div class="section">
+    <div class="section-title">// YOUR 3-MINUTE LOOM SCRIPT</div>
+    <div class="script-steps">
+      <div class="script-step">
+        <div class="ss-num">00</div>
+        <div class="ss-content">
+          <div class="ss-title">Open with the one-liner that defines the product</div>
+          <div class="ss-desc">Don't start with "so I built this app." Open with the problem statement that makes a Swiggy PM lean forward.</div>
+          <div class="ss-say">"Every Friday, my friends and I spend 20 minutes arguing about dinner. Then another 10 deciding where to get dessert. I built an agent that does both in one sentence."</div>
+        </div>
+      </div>
+      <div class="script-step">
+        <div class="ss-num">01</div>
+        <div class="ss-content">
+          <div class="ss-title">Type the magic prompt, don't hide it</div>
+          <div class="ss-desc">Type slowly so the viewer reads it. Make it real and specific — city, guest count, cuisine, time.</div>
+          <div class="ss-say">"Plan Friday dinner for 4 — Italian in Indiranagar around 8pm — and order dessert from gelato place to my home at 10pm."</div>
+        </div>
+      </div>
+      <div class="script-step">
+        <div class="ss-num">02</div>
+        <div class="ss-content">
+          <div class="ss-title">Narrate the tool calls as they happen</div>
+          <div class="ss-desc">Show the agent thinking. Point at each tool call in your UI — "here it's calling search_restaurants_dineout on the Dineout server, simultaneously calling get_addresses on Food." This proves you understand the MCP internals.</div>
+        </div>
+      </div>
+      <div class="script-step">
+        <div class="ss-num">03</div>
+        <div class="ss-content">
+          <div class="ss-title">Show the split-screen confirmation</div>
+          <div class="ss-desc">Your UI should show Dineout booking + Food cart side-by-side before confirmation. One button. "Confirm both." This is the WOW moment — the user never had to switch between apps.</div>
+        </div>
+      </div>
+      <div class="script-step">
+        <div class="ss-num">04</div>
+        <div class="ss-content">
+          <div class="ss-title">End with the architecture slide — 30 seconds</div>
+          <div class="ss-desc">Show your agent flow diagram. Name the specific tools. Say "multi-turn cart state" and "non-idempotent order placement with check-then-retry." These are exact phrases from Swiggy's docs. They'll know you read deeply.</div>
+          <div class="ss-say">"The agent handles cart conflicts, retries non-idempotent order placements safely, and always re-fetches cart state before confirming — because the user could've edited in the Swiggy app."</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIRE SIGNALS -->
+  <div class="section">
+    <div class="section-title">// WHY THIS GETS YOU HIRED</div>
+    <div class="signals">
+      <div class="signal">
+        <div class="sig-icon">🧠</div>
+        <div>
+          <div class="sig-title">You read the docs, not just the homepage</div>
+          <div class="sig-desc">Using multi-server auth, idempotency guards, and cart-state refresh shows you went 5 levels deep into their docs.</div>
+        </div>
+      </div>
+      <div class="signal">
+        <div class="sig-icon">🎯</div>
+        <div>
+          <div class="sig-title">Product thinking, not just API calling</div>
+          <div class="sig-desc">"Plan my evening" is a real user job. You didn't build a Postman wrapper — you built something with a clear value proposition.</div>
+        </div>
+      </div>
+      <div class="signal">
+        <div class="sig-icon">⚡</div>
+        <div>
+          <div class="sig-title">Multi-server orchestration is rare</div>
+          <div class="sig-desc">Most applicants will build a single-server chatbot. Combining Food + Dineout in one agent turn is the technical flex that separates you.</div>
+        </div>
+      </div>
+      <div class="signal">
+        <div class="sig-icon">🇮🇳</div>
+        <div>
+          <div class="sig-title">India-aware design decisions</div>
+          <div class="sig-desc">COD-only coupon filtering, ₹1000 cart cap handling, IST meal-hour rate limit awareness — these details show you thought about their actual market.</div>
+        </div>
+      </div>
+      <div class="signal">
+        <div class="sig-icon">📹</div>
+        <div>
+          <div class="sig-title">The Loom video does the selling</div>
+          <div class="sig-desc">Swiggy explicitly asks for a video. A polished 3-minute demo from a student is more memorable than most senior candidates' resumes.</div>
+        </div>
+      </div>
+      <div class="signal">
+        <div class="sig-icon">🚀</div>
+        <div>
+          <div class="sig-title">It's deployed and shareable</div>
+          <div class="sig-desc">Push to Vercel. Share a link that works. "Here's the live URL" beats "here's a GitHub repo" every single time.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    built for swiggy builders club · demo project · students → builders → hire
+  </footer>
+</div>
+
+<script>
+const SCENARIOS = {
+  "Plan Friday dinner for 4, Italian in Indiranagar, dessert at 10pm": [
+    { role: 'ai', type: 'text', text: 'On it! Let me fan out across both servers simultaneously. 🍷' },
+    { role: 'ai', type: 'tool', server: 'dineout', name: 'get_saved_locations', args: '{}' },
+    { role: 'ai', type: 'tool', server: 'food', name: 'get_addresses', args: '{}' },
+    { role: 'ai', type: 'tool', server: 'dineout', name: 'search_restaurants_dineout', args: '{ query: "Italian", entityType: "CUISINE", lat: 12.9784, lng: 77.6408 }' },
+    { role: 'ai', type: 'text', text: 'Found 3 Italian restaurants in Indiranagar. Best match:' },
+    { role: 'ai', type: 'card', server: 'dineout', name: 'Toscano Cucina', meta: '⭐ 4.6 · 2.1 km · Fri 8pm — available', price: 'Free reservation' },
+    { role: 'ai', type: 'tool', server: 'dineout', name: 'get_available_slots', args: '{ restaurantId: "rest_toscano", date: "2026-05-30", guestCount: 4 }' },
+    { role: 'ai', type: 'tool', server: 'food', name: 'search_restaurants', args: '{ addressId: "addr_home", query: "gelato dessert" }' },
+    { role: 'ai', type: 'card', server: 'food', name: 'Amore Gelato', meta: '⭐ 4.4 · 30 min delivery · Open till 11pm', price: '~₹380 for 2 tubs' },
+    { role: 'ai', type: 'confirm' }
+  ],
+  "Book a rooftop restaurant tonight, 2 people, send biryani dessert later": [
+    { role: 'ai', type: 'text', text: 'Rooftop + biryani later — nice evening plan. Searching Dineout for rooftop spots nearby...' },
+    { role: 'ai', type: 'tool', server: 'dineout', name: 'search_restaurants_dineout', args: '{ query: "rooftop", entityType: "RESTAURANT_CATEGORY", addressId: "addr_home" }' },
+    { role: 'ai', type: 'tool', server: 'dineout', name: 'get_available_slots', args: '{ restaurantId: "rest_sky", date: "2026-05-23", guestCount: 2 }' },
+    { role: 'ai', type: 'card', server: 'dineout', name: 'Sky Social', meta: '⭐ 4.5 · Rooftop · Tonight 8:30pm — available', price: 'Free reservation' },
+    { role: 'ai', type: 'tool', server: 'food', name: 'search_restaurants', args: '{ query: "biryani", addressId: "addr_home" }' },
+    { role: 'ai', type: 'card', server: 'food', name: 'Biryani House', meta: '⭐ 4.3 · 25 min delivery · ₹49 off with WELCOME', price: '₹349 after coupon' },
+    { role: 'ai', type: 'confirm' }
+  ],
+  "Family dinner out + get groceries delivered for tomorrow": [
+    { role: 'ai', type: 'text', text: 'Family dinner + tomorrows groceries — I\'ll check Dineout and Instamart together.' },
+    { role: 'ai', type: 'tool', server: 'dineout', name: 'search_restaurants_dineout', args: '{ query: "family", entityType: "RESTAURANT_CATEGORY", addressId: "addr_home" }' },
+    { role: 'ai', type: 'card', server: 'dineout', name: 'Mainland China', meta: '⭐ 4.2 · Family dining · Sat 7pm — available', price: 'Free reservation' },
+    { role: 'ai', type: 'tool', server: 'food', name: 'search_restaurants', args: '{ query: "grocery essentials", addressId: "addr_home" }' },
+    { role: 'ai', type: 'text', text: 'Instamart can deliver your groceries in 10-20 mins — I found milk, vegetables, and eggs from your usual list. Want me to add them? Note: Instamart and Dineout run on separate carts, both confirmed separately.' },
+    { role: 'ai', type: 'confirm' }
+  ]
+};
+
+let currentScenario = null;
+let stepIndex = 0;
+let isTyping = false;
+
+function scrollBottom() {
+  const area = document.getElementById('chatArea');
+  setTimeout(() => area.scrollTop = area.scrollHeight, 50);
+}
+
+function addMsg(html, role) {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  area.appendChild(div.firstElementChild);
+  scrollBottom();
+}
+
+function buildUserBubble(text) {
+  return `<div class="msg user"><div class="avatar user">👤</div><div class="bubble">${text}</div></div>`;
+}
+
+function buildAIText(text) {
+  return `<div class="msg ai"><div class="avatar ai">🍽️</div><div class="bubble">${text}</div></div>`;
+}
+
+function buildToolCall(server, name, args) {
+  const cls = server === 'dineout' ? 'dineout' : '';
+  return `<div class="msg ai">
+    <div class="avatar ai">🍽️</div>
+    <div class="bubble">
+      <div class="tool-call ${cls}">
+        <div><span class="tool-name">${name}</span> <span style="color:var(--muted);font-size:10px">[${server.toUpperCase()} MCP]</span></div>
+        <div class="tool-args">${args}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildCard(server, name, meta, price) {
+  const tag = server === 'dineout'
+    ? '<span class="rc-tag dineout-tag">DINEOUT</span>'
+    : '<span class="rc-tag food-tag">FOOD DELIVERY</span>';
+  return `<div class="msg ai">
+    <div class="avatar ai">🍽️</div>
+    <div class="bubble" style="max-width:85%">
+      <div class="result-card">
+        <div class="rc-top">
+          <div class="rc-name">${name}</div>
+          ${tag}
+        </div>
+        <div class="rc-meta" style="margin-bottom:8px"><span>${meta}</span></div>
+        <div class="rc-price">${price}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildConfirm() {
+  return `<div class="msg ai">
+    <div class="avatar ai">🍽️</div>
+    <div class="bubble" style="max-width:90%">
+      <div class="confirm-box">
+        <div class="confirm-title">✨ Here's your full evening — confirm both?</div>
+        <div class="confirm-row">
+          <div class="confirm-icon">🍷</div>
+          <div class="confirm-detail">
+            <strong>Dineout booking</strong>
+            Friday 8:00pm · 4 guests · Free reservation
+          </div>
+        </div>
+        <div class="confirm-row">
+          <div class="confirm-icon">🛵</div>
+          <div class="confirm-detail">
+            <strong>Food delivery (later)</strong>
+            Estimated ₹380 · COD · 25-30 min when placed
+          </div>
+        </div>
+        <div class="confirm-btns">
+          <button class="btn-confirm" onclick="confirmOrder()">Confirm both ✓</button>
+          <button class="btn-cancel" onclick="cancelOrder()">Change something</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildTyping() {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.id = 'typingMsg';
+  div.className = 'msg ai';
+  div.innerHTML = `<div class="avatar ai">🍽️</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  area.appendChild(div);
+  scrollBottom();
+}
+
+function removeTyping() {
+  const t = document.getElementById('typingMsg');
+  if (t) t.remove();
+}
+
+async function playNextStep() {
+  if (!currentScenario || stepIndex >= currentScenario.length) {
+    isTyping = false;
+    return;
+  }
+  const step = currentScenario[stepIndex++];
+  removeTyping();
+
+  if (step.type === 'text') {
+    addMsg(buildAIText(step.text), 'ai');
+  } else if (step.type === 'tool') {
+    addMsg(buildToolCall(step.server, step.name, step.args), 'ai');
+  } else if (step.type === 'card') {
+    addMsg(buildCard(step.server, step.name, step.meta, step.price), 'ai');
+  } else if (step.type === 'confirm') {
+    addMsg(buildConfirm(), 'ai');
+    isTyping = false;
+    return;
+  }
+
+  if (stepIndex < currentScenario.length) {
+    buildTyping();
+    const delay = step.type === 'tool' ? 700 : 1100;
+    setTimeout(playNextStep, delay);
+  } else {
+    isTyping = false;
+  }
+}
+
+function sendQuick(el) {
+  const text = el.textContent;
+  document.getElementById('quickPrompts').style.display = 'none';
+  startConversation(text);
+}
+
+function sendMsg() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || isTyping) return;
+  input.value = '';
+  document.getElementById('quickPrompts').style.display = 'none';
+  startConversation(text);
+}
+
+function startConversation(text) {
+  addMsg(buildUserBubble(text), 'user');
+
+  // Find matching scenario or use first
+  let scenario = null;
+  for (const key of Object.keys(SCENARIOS)) {
+    if (text.toLowerCase().includes(key.toLowerCase().split(',')[0].toLowerCase())) {
+      scenario = SCENARIOS[key];
+      break;
+    }
+  }
+  if (!scenario) scenario = SCENARIOS[Object.keys(SCENARIOS)[0]];
+
+  currentScenario = scenario;
+  stepIndex = 0;
+  isTyping = true;
+
+  buildTyping();
+  setTimeout(playNextStep, 900);
+}
+
+function confirmOrder() {
+  const area = document.getElementById('chatArea');
+  const confirmBox = area.querySelector('.confirm-box');
+  if (confirmBox) {
+    confirmBox.innerHTML = `
+      <div style="text-align:center;padding:8px 0">
+        <div style="font-size:28px;margin-bottom:10px">🎉</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Evening locked in!</div>
+        <div style="font-size:12px;color:var(--muted2);line-height:1.7">
+          Table booked via <span style="color:#a78bfa">Dineout MCP</span> · book_table ✓<br>
+          Delivery queued via <span style="color:#ff8a5c">Food MCP</span> · place_food_order ✓<br>
+          <span style="color:var(--muted);font-family:var(--mono);font-size:11px">Both confirmed with separate order IDs</span>
+        </div>
+      </div>`;
+    scrollBottom();
+  }
+}
+
+function cancelOrder() {
+  const area = document.getElementById('chatArea');
+  const confirmBox = area.querySelector('.confirm-box');
+  if (confirmBox) {
+    confirmBox.innerHTML = `<div style="font-size:13px;color:var(--muted2);padding:4px 0">No problem! What would you like to change?</div>`;
+    document.getElementById('chatInput').focus();
+  }
+}
+</script>
+</body>
+</html>
