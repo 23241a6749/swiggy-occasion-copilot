@@ -18,124 +18,90 @@ The agent:
 - **MCP**: Streamable HTTP clients to `https://mcp.swiggy.com/food` and `https://mcp.swiggy.com/dineout`
 - **Auth**: OAuth 2.1 + PKCE — one token, two servers
 
-## Key patterns
+## Key Patterns
 
 - **COD only** — `requiresOnlinePayment` coupons are filtered out
 - **Always call `get_food_cart` before `place_food_order`** — never trust earlier state
 - **Dineout uses lat/lng** for search; **Food uses addressId** — never mix them
 - **Cart is per-restaurant on Food** — warn user before switching
 - **No scheduled delivery in v1** — prepare cart, remind user to confirm at right time
-- **Never show raw IDs** (addressId, restaurantId) in responses
+- **Never show raw IDs** in responses
 - **Never place any order without explicit user confirmation**
 
-## Quick start (local)
+## Quick Start
 
 ```bash
-# Clone
 git clone https://github.com/23241a6749/swiggy-occasion-copilot.git
 cd swiggy-occasion-copilot
-
-# Install
 npm install
-
-# Run locally
 npm run dev
-# Open http://localhost:3000
 ```
 
-Create `.env.local` (optional — demo works without it):
+Create `.env.local` (optional — demo works without it for the prototype):
 
 ```
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key-here
+ANTHROPIC_API_KEY=sk-ant-your-key-here
 SWIGGY_MCP_FOOD_URL=https://mcp.swiggy.com/food
 SWIGGY_MCP_DINEOUT_URL=https://mcp.swiggy.com/dineout
 ```
 
-## Deploy to Vercel (one command)
-
-```bash
-chmod +x deploy.sh
-./deploy.sh
-```
-
-Or manually:
+## Deploy to Vercel
 
 ```bash
 npm install
 npx vercel --prod
 ```
 
-## Project structure
+## Project Structure
 
 ```
-swiggy-occasion-copilot/
 ├── app/
-│   ├── page.tsx              ← Interactive chat UI (the demo)
+│   ├── page.tsx              ← Interactive chat UI (demo)
 │   ├── layout.tsx            ← Root layout
 │   ├── globals.css           ← Dark theme + animations
-│   └── api/chat/route.ts    ← Claude + MCP agent (staging-ready)
+│   └── api/chat/route.ts    ← Claude + MCP agent
 ├── components/
-│   ├── ChatMessage.tsx      ← User/AI message bubbles
-│   ├── ToolCallCard.tsx     ← Live MCP tool call display
-│   ├── RestaurantCard.tsx   ← Dineout + Food result cards
-│   ├── ConfirmBox.tsx       ← Staged 2-step confirmation
-│   ├── WarnCard.tsx         ← Slot-unavailable edge case
-│   └── TypingIndicator.tsx  ← 3-dot typing animation
+│   ├── ChatMessage.tsx       ← User/AI message bubbles
+│   ├── ToolCallCard.tsx      ← Live MCP tool call display
+│   ├── RestaurantCard.tsx    ← Dineout + Food result cards
+│   ├── ConfirmBox.tsx        ← Staged 2-step confirmation
+│   ├── WarnCard.tsx          ← Slot-unavailable edge case
+│   └── TypingIndicator.tsx    ← 3-dot typing animation
 ├── lib/
-│   ├── types.ts             ← TypeScript types
-│   └── scenarios.ts         ← 3 demo scenarios
-├── CLAUDE.md                ← Swiggy docs wiring for AI coding agents
-├── deploy.sh                ← One-command Vercel deploy
+│   ├── types.ts              ← TypeScript types
+│   └── scenarios.ts          ← 3 demo scenarios
+├── CLAUDE.md                 ← Swiggy docs wiring for AI coding agents
+├── deploy.sh                 ← One-command Vercel deploy
 └── README.md
 ```
 
-## Demo — 3 interactive scenarios
+## Agent Flow
 
-The web UI has 3 built-in scenarios you can trigger with one click:
+```
+User: "Plan date night for 2, Italian, 8pm, gelato after"
 
-1. **Date night** — Italian in Indiranagar, 2 people, 8pm, gelato after
-   → Shows full Dineout + Food parallel flow with confirmations
+Step 1 → get_saved_locations (Dineout) + get_addresses (Food) — parallel
+Step 2 → search_restaurants_dineout (Dineout) + search_restaurants (Food) — parallel
+Step 3 → get_available_slots (Dineout) + get_restaurant_menu (Food)
+Step 4 → Show results + staged confirmation (Dineout & Food separately)
+Step 5 → book_table (Dineout) on confirmation → place_food_order (Food)
+```
 
-2. **Rooftop for 4** — biryani delivered home around 10pm
-   → Shows coupon application + scheduled delivery reminder pattern
+Each server confirmation is independent. Partial success is surfaced explicitly — a failed food order never silently cancels a Dineout booking.
 
-3. **Slot unavailable** — graceful fallback with 7-day alternative search
-   → Shows the edge case recovery flow
+## Edge Cases Handled
 
-## Loom recording script (3 minutes)
-
-Use the **web UI** for the recording (no Claude Desktop needed):
-
-**0:00–0:20 — HOOK**
-> "I built an AI agent that plans your entire evening in one sentence — it books your restaurant table on Dineout and queues your food delivery, across two Swiggy MCP servers, with staged confirmations and real fallback logic."
-
-**0:20–1:20 — WEB UI LIVE DEMO**
-> Click "Date night — Italian in Indiranagar, 2 people, 8pm, gelato after"
-> Narrate as the flow plays:
-> - *"You see the agent calling get_saved_locations on Dineout and get_addresses on Food simultaneously — one OAuth token, two MCP servers."*
-> - *"search_restaurants_dineout fires next — finding Italian options within 3km."*
-> - *"get_available_slots confirms 3 slots at 8pm for 2 guests."*
-> - *"The agent surfaces the restaurant card — Toscano Cucina, free reservation."*
-> - *"Simultaneously, it searches for gelato on the Food server and builds the delivery cart."*
-> - *"Then the staged confirmation box appears — Dineout and Food are independent transactions."*
-
-**1:20–2:00 — EDGE CASE**
-> Click "Show me what happens when a slot isn't available"
-> *"The agent never dead-ends. Watch what happens when the requested slot is gone."*
-
-**2:00–2:40 — CODE**
-> Show 3 things:
-> 1. `app/api/chat/route.ts` — the system prompt with Swiggy's rules
-> 2. The `get_food_cart` before `place_food_order` pattern in the code
-> 3. `CLAUDE.md` — show it's wired to real Swiggy docs
-
-**2:40–3:00 — CLOSE**
-> "Staging credentials are on the way. This is the prototype — the MCP-connected version is in active dev. Happy to show more."
+| Scenario | Handling |
+|----------|----------|
+| Slot unavailable | Re-fetches 7-day window, surfaces 3 alternatives |
+| 5xx on book_table | Check-then-retry via get_booking_status |
+| 401 mid-session | Re-run OAuth 2.1 PKCE, retry once |
+| Cart conflict | Warn user before switching restaurants |
+| COD-only | Filter requiresOnlinePayment coupons at agent layer |
+| Scheduled delivery | Prepare cart, remind user to confirm at right time |
 
 ## Status
 
-- ✅ Interactive prototype UI live (3 scenarios, real tool call animations)
-- ✅ Claude API route with full Swiggy MCP system prompt (staging-ready)
-- ✅ CLAUDE.md wired to real Swiggy docs for AI coding agents
-- 🔄 OAuth flow for web app (waiting on staging access)
-- 🔄 Vercel deploy URL (run `deploy.sh` from your local machine)
+- ✅ Interactive prototype UI live
+- ✅ Claude API route with full Swiggy MCP system prompt
+- 🔄 OAuth flow for web app (pending staging access)
